@@ -136,6 +136,24 @@ target_link_libraries(hw1
 set_target_properties(hw1 PROPERTIES XCODE_ATTRIBUTE_CONFIGURATION_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hw1/")
 create_target_launcher(hw1 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/hw1/")
 
+# HW1 part2
+add_executable(hw1_part2
+		hw1_part2/hw1_part2.cpp
+		common/shader.cpp
+		common/shader.hpp
+
+		hw1_part2/TransformVertexShader.vertexshader
+		hw1_part2/ColorFragmentShader.fragmentshader
+		)
+target_link_libraries(hw1_part2
+		${ALL_LIBS}
+		)
+
+# Xcode and Visual working directories
+set_target_properties(hw1_part2 PROPERTIES XCODE_ATTRIBUTE_CONFIGURATION_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hw1_part2/")
+create_target_launcher(hw1_part2 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/hw1_part2/")
+
+
 # Tutorial 5
 add_executable(tutorial05_textured_cube
 	tutorial05_textured_cube/tutorial05.cpp
