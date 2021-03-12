@@ -119,6 +119,23 @@ target_link_libraries(tutorial04_colored_cube
 set_target_properties(tutorial04_colored_cube PROPERTIES XCODE_ATTRIBUTE_CONFIGURATION_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tutorial04_colored_cube/")
 create_target_launcher(tutorial04_colored_cube WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/tutorial04_colored_cube/")
 
+# HW1 Triangle
+add_executable(hw1_triangle
+		hw1_triangle/hw1_triangle.cpp
+		common/shader.cpp
+		common/shader.hpp
+
+		hw1_triangle/TransformVertexShader.vertexshader
+		hw1_triangle/ColorFragmentShader.fragmentshader
+		)
+target_link_libraries(hw1_triangle
+		${ALL_LIBS}
+		)
+
+# Xcode and Visual working directories
+set_target_properties(hw1_triangle PROPERTIES XCODE_ATTRIBUTE_CONFIGURATION_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hw1_triangle/")
+create_target_launcher(hw1_triangle WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/hw1_triangle/")
+
 # HW1
 add_executable(hw1
 		hw1/hw1.cpp
@@ -148,6 +165,7 @@ add_executable(hw1_part2
 target_link_libraries(hw1_part2
 		${ALL_LIBS}
 		)
+
 
 # Xcode and Visual working directories
 set_target_properties(hw1_part2 PROPERTIES XCODE_ATTRIBUTE_CONFIGURATION_BUILD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hw1_part2/")
