@@ -33,30 +33,129 @@ struct point {
         this->y = b;
         this->z = c;
     }
-    float x{};
-    float y{};
-    float z{};
+    float x;
+    float y;
+    float z;
+};
+
+struct ballCenter {
+    ballCenter(){}
+
+    ballCenter(float a, float b, float c, glm::vec3 d){
+        this->x = a;
+        this->y = b;
+        this->z = c;
+        this->direction = d;
+    }
+    float x;
+    float y;
+    float z;
+    glm::vec3 direction;
 };
 
 // some global vectors. Did not won't to send them as arguments
+
+// vertices for 1 monster
 std::vector<glm::vec3> monster_vertices;
 std::vector<glm::vec2> monster_uvs;
 std::vector<glm::vec3> monster_normals;
+
+int number_of_monsters = 0;
+std::vector<glm::vec3> all_monsters_vertices;
+std::vector<point> monster_centers;
+
+// vertices for 1 fireball
+std::vector<glm::vec3> ball_vertices;
+std::vector<glm::vec2> ball_uvs;
+std::vector<glm::vec3> ball_normals;
+
+int number_of_balls = 0;
+std::vector<glm::vec3> all_balls_vertices;
+std::vector<glm::vec3> ball_directions;
+std::vector<point> ball_centers;
+
+// all vertices in current window
 std::vector<glm::vec3> vertices;
 std::vector<glm::vec2> uvs;
 std::vector<glm::vec3> normals;
 
+float ball_speed = 6.0f;
+
 GLuint vertexbuffer;
 GLuint uvbuffer;
 
+float ball_last_time = float(glfwGetTime());
 
-point CreateNewMonster(){
+
+
+
+void moveBalls(){
+    try {
+        // only 1 ball
+        // ball that is father than 10 disappears
+        glm::vec3 my_pos =  getPosition();
+        float my_x = my_pos.x;
+        float my_y = my_pos.y;
+        float my_z = my_pos.z;
+       if (ball_centers[0].x - my_x > 10 || ball_centers[0].y - my_y > 10 || ball_centers[0].z - my_z> 10 ||
+                ball_centers[0].x - my_x < -10 || ball_centers[0].y - my_y < -10 || ball_centers[0].z - my_z< -10) {
+            number_of_balls = 0;
+            all_balls_vertices.clear();
+            ball_directions.clear();
+            ball_centers.clear();
+            number_of_balls = 0;
+        }
+        float ball_current_time = glfwGetTime();
+        auto ball_delta_time = float(ball_current_time - ball_last_time);
+        int v_in_ball = ball_vertices.size();
+        float m_x;
+        float m_y;
+        float m_z;
+        for (int i_ball = 0; i_ball < number_of_balls; i_ball++) {
+            for (int v_ball = 0; v_ball < v_in_ball; v_ball++) {
+                m_x = ball_directions[i_ball].x * ball_speed * ball_delta_time;
+                m_y = ball_directions[i_ball].y * ball_speed * ball_delta_time;
+                m_z = ball_directions[i_ball].z * ball_speed * ball_delta_time;
+                glm::vec3 move_vec = glm::vec3(m_x, m_y, m_z);
+                all_balls_vertices[v_in_ball * i_ball + v_ball] += move_vec;
+            }
+            ball_centers[i_ball].x += m_x;
+            ball_centers[i_ball].y += m_y;
+            ball_centers[i_ball].z += m_z;
+        }
+        ball_last_time = float(glfwGetTime());
+    }
+    catch (const char* msg) {
+        printf(msg);
+        
+    }
+}
+
+void showAllObjects() {
+    vertices.clear();
+    uvs.clear();
+    vertices = all_monsters_vertices;
+    vertices.insert(vertices.end(), all_balls_vertices.begin(), all_balls_vertices.end());
+    for(int j = 0; j < number_of_monsters; j++){
+        uvs.insert(uvs.end(), monster_uvs.begin(), monster_uvs.end());
+    }
+    for(int j = 0; j < number_of_balls; j++){
+        uvs.insert(uvs.end(), ball_uvs.begin(), ball_uvs.end());
+    }
+    glGenBuffers(1, &vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &uvbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+}
+
+void CreateNewMonster(){
     // can be generated in one place or near gamer
     std::vector<glm::vec3> new_monster_vertices = monster_vertices;
     std::vector<glm::vec2> new_monster_uvs = monster_uvs;
     std::vector<glm::vec3> new_monster_normals = monster_normals;
-
-
 
     int random_variable = std::rand();
     float theta =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(3.142f-0)));
@@ -70,25 +169,35 @@ point CreateNewMonster(){
         new_monster_vertices[j].x+= x_;
         new_monster_vertices[j].y += y_;
         new_monster_vertices[j].z += z_;
-        vertices.push_back(new_monster_vertices[j]);
+        all_monsters_vertices.push_back(new_monster_vertices[j]);
 
     }
-    for(int j = 0; j < monster_uvs.size(); j++){
-        uvs.push_back(monster_uvs[j]);
-    }
-
-    glGenBuffers(1, &vertexbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
-
-    glGenBuffers(1, &uvbuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+    number_of_monsters++;
     point p = point(x_, y_, z_);
-    return p;
-
+    monster_centers.push_back(p);
 }
 
+void fire(){
+    // can be generated in one place or near gamer
+    std::vector<glm::vec3> new_ball_vertices = ball_vertices;
+
+    float x_ = getPosition().x;
+    float y_ = getPosition().y;
+    float z_ = getPosition().z;
+
+
+    for(int j = 0; j < new_ball_vertices.size(); j++){
+        new_ball_vertices[j].x+= x_;
+        new_ball_vertices[j].y += y_;
+        new_ball_vertices[j].z += z_;
+        all_balls_vertices.push_back(new_ball_vertices[j]);
+
+    }
+    ball_directions.push_back(getDirection());
+    number_of_balls++;
+    point p = point(x_, y_, z_);
+    ball_centers.push_back(p);
+}
 
 int main( void )
 {
@@ -159,19 +268,28 @@ int main( void )
 	//GLuint Texture = loadDDS("uvmap.DDS");
 	//GLuint Texture = loadDDS("ice512.dds");
 	//GLuint Texture = loadDDS("lava.dds");
-	GLuint Texture = loadDDS("ice512.dds");
+	//GLuint Texture = loadDDS("ice512.dds");
+	GLuint Texture = loadDDS("orange_skin.dds");
 
 	// Get a handle for our "myTextureSampler" uniform
 	GLuint TextureID  = glGetUniformLocation(programID, "myTextureSampler");
 
 	// Read our .obj file
 	//bool res = loadOBJ("cube.obj", vertices, uvs, normals);
-	bool res = loadOBJ("myobj.obj", monster_vertices, monster_uvs, monster_normals);
+	bool monster_res = loadOBJ("myobj.obj", monster_vertices, monster_uvs, monster_normals);
+	bool ball_res = loadOBJ("sphere.obj", ball_vertices, ball_uvs, ball_normals);
+	//bool res = loadOBJ("Orange.obj", monster_vertices, monster_uvs, monster_normals);
 	//bool res = loadOBJ("MONARCH.OBJ", vertices, uvs, normals);
     //bool res = loadOBJ("Butterfly.obj", vertices, uvs, normals);
     //bool res = loadOBJ("LADYBUG.OBJ", vertices, uvs, normals);
 
-    // Won't be used at the moment.
+
+    // ball should be smaller, so we recalculate vertices
+    for(int k = 0; k < ball_vertices.size(); k++) {
+        ball_vertices[k].x /= 40;
+        ball_vertices[k].y /= 40;
+        ball_vertices[k].z /= 40;
+    }
 
 
     // Load it into a VBO
@@ -192,18 +310,37 @@ int main( void )
 
     auto last_monster_generation = std::chrono::system_clock::now();
     auto cur_time = std::chrono::system_clock::now();
+
+    //point new_center = CreateNewMonster();
+
+    std::cout<<"Starting game"<<std::endl;
+
 	do{
 	    // get my current position in space
         glm::vec3 my_position = getPosition();
 
         cur_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = cur_time-last_monster_generation;
-	    if(elapsed_seconds.count() > 2) { // every 2 sec
-            point new_center = CreateNewMonster();
+        std::chrono::duration<double> elapsed_seconds = cur_time - last_monster_generation;
+
+        // create monsters every 2 sec
+	    if(elapsed_seconds.count() > 2) {
+             CreateNewMonster();
             // should we check for intersection with old monsters?
-            centers.push_back(new_center);
+
+            //update time
             last_monster_generation = std::chrono::system_clock::now();
 	    }
+	    // fire fireball, if ENTER is pressed
+        if ((glfwGetKey( window, GLFW_KEY_ENTER ) == GLFW_PRESS )&& number_of_balls == 0){
+            fire();
+        }
+        // balls fly each in their direction
+        if(number_of_balls > 0) {
+            moveBalls();
+        }
+
+        showAllObjects();
+
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
