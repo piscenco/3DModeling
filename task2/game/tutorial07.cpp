@@ -20,6 +20,68 @@ using namespace glm;
 #include <common/controls.hpp>
 #include <common/objloader.hpp>
 
+#include <iostream>
+#include <ctime>
+
+struct point {
+    point(){}
+
+    point(float a, float b, float c){
+        this->x = a;
+        this->y = b;
+        this->z = c;
+    }
+    float x{};
+    float y{};
+    float z{};
+};
+
+// some global vectors. Did not won't to send them as arguments
+std::vector<glm::vec3> monster_vertices;
+std::vector<glm::vec2> monster_uvs;
+std::vector<glm::vec3> monster_normals;
+std::vector<glm::vec3> vertices;
+std::vector<glm::vec2> uvs;
+std::vector<glm::vec3> normals;
+
+GLuint vertexbuffer;
+GLuint uvbuffer;
+
+
+void CreateNewMonster(){
+    // can be generated in one place or near gamer
+    std::vector<glm::vec3> new_monster_vertices = monster_vertices;
+    std::vector<glm::vec2> new_monster_uvs = monster_uvs;
+    std::vector<glm::vec3> new_monster_normals = monster_normals;
+
+
+
+    int random_variable = std::rand();
+    float theta =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(3.142f-0)));
+    float phi =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(6.283f-0)));
+    float rad =  1 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(50.0f-15)));
+
+    for(int j = 0; j < new_monster_vertices.size(); j++){
+        new_monster_vertices[j].x+= rad*cos(phi)*sin(theta);
+        new_monster_vertices[j].y += rad*sin(phi)*sin(theta);
+        new_monster_vertices[j].z += rad*cos(theta);
+        vertices.push_back(new_monster_vertices[j]);
+
+    }
+    for(int j = 0; j < monster_uvs.size(); j++){
+        uvs.push_back(monster_uvs[j]);
+    }
+
+    glGenBuffers(1, &vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &uvbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+}
+
+
 int main( void )
 {
 	// Initialise GLFW
@@ -37,7 +99,7 @@ int main( void )
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	// Open a window and create its OpenGL context
-	window = glfwCreateWindow( 1024, 768, "Tutorial 07 - Model Loading", NULL, NULL);
+	window = glfwCreateWindow( 1024, 768, "Game", NULL, NULL);
 	if( window == NULL ){
 		fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
 		getchar();
@@ -65,7 +127,7 @@ int main( void )
     glfwSetCursorPos(window, 1024/2, 768/2);
 
 	// Dark blue background
-	glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
+	glClearColor(184.0f/255.0f, 230.0f/255.0f, 244.0f/255.0f, 0.0f);
 
 	// Enable depth test
 	glEnable(GL_DEPTH_TEST);
@@ -89,34 +151,41 @@ int main( void )
 	//GLuint Texture = loadDDS("uvmap.DDS");
 	//GLuint Texture = loadDDS("ice512.dds");
 	//GLuint Texture = loadDDS("lava.dds");
-	GLuint Texture = loadDDS("water.dds");
+	GLuint Texture = loadDDS("ice512.dds");
 
 	// Get a handle for our "myTextureSampler" uniform
 	GLuint TextureID  = glGetUniformLocation(programID, "myTextureSampler");
 
 	// Read our .obj file
-	std::vector<glm::vec3> vertices;
-	std::vector<glm::vec2> uvs;
-	std::vector<glm::vec3> normals; // Won't be used at the moment.
-	bool res = loadOBJ("cube.obj", vertices, uvs, normals);
+	//bool res = loadOBJ("cube.obj", vertices, uvs, normals);
+	bool res = loadOBJ("myobj.obj", monster_vertices, monster_uvs, monster_normals);
 	//bool res = loadOBJ("MONARCH.OBJ", vertices, uvs, normals);
     //bool res = loadOBJ("Butterfly.obj", vertices, uvs, normals);
     //bool res = loadOBJ("LADYBUG.OBJ", vertices, uvs, normals);
 
-	// Load it into a VBO
+    // Won't be used at the moment.
 
-	GLuint vertexbuffer;
+
+    // Load it into a VBO
+
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
 
-	GLuint uvbuffer;
 	glGenBuffers(1, &uvbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
 	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+	int iteration_number = 0;
+    srand(26);
+    //std::srand(std::time(nullptr)); // use current time as seed for random generator
+    std::vector<point> centers;
+    centers.emplace_back(0, 0, 0);
 
 	do{
-
+	    if(iteration_number == 1000) {
+            iteration_number = 0;
+            CreateNewMonster();
+	    }
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -173,10 +242,13 @@ int main( void )
 		// Swap buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-
+        iteration_number++;
 	} // Check if the ESC key was pressed or the window was closed
 	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
 		   glfwWindowShouldClose(window) == 0 );
+
+
+
 
 	// Cleanup VBO and shader
 	glDeleteBuffers(1, &vertexbuffer);
