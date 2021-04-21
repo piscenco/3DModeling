@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
+#include <iostream>
+#include <ctime>
+#include <chrono>
 
 // Include GLEW
 #include <GL/glew.h>
@@ -20,8 +23,7 @@ using namespace glm;
 #include <common/controls.hpp>
 #include <common/objloader.hpp>
 
-#include <iostream>
-#include <ctime>
+
 
 struct point {
     point(){}
@@ -175,16 +177,22 @@ int main( void )
 	glGenBuffers(1, &uvbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
 	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
-	int iteration_number = 0;
+	//int iteration_number = 0;
     srand(26);
     //std::srand(std::time(nullptr)); // use current time as seed for random generator
     std::vector<point> centers;
     centers.emplace_back(0, 0, 0);
 
+    auto last_monster_generation = std::chrono::system_clock::now();
+    auto cur_time = std::chrono::system_clock::now();
 	do{
-	    if(iteration_number == 1000) {
-            iteration_number = 0;
+        cur_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = cur_time-last_monster_generation;
+	    //if(iteration_number == 1000) {
+	    if(elapsed_seconds.count() > 2) { // every 2 sec
+            //iteration_number = 0;
             CreateNewMonster();
+            last_monster_generation = std::chrono::system_clock::now();
 	    }
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -242,7 +250,7 @@ int main( void )
 		// Swap buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-        iteration_number++;
+        //iteration_number++;
 	} // Check if the ESC key was pressed or the window was closed
 	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
 		   glfwWindowShouldClose(window) == 0 );
