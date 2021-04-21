@@ -50,7 +50,7 @@ GLuint vertexbuffer;
 GLuint uvbuffer;
 
 
-void CreateNewMonster(){
+point CreateNewMonster(){
     // can be generated in one place or near gamer
     std::vector<glm::vec3> new_monster_vertices = monster_vertices;
     std::vector<glm::vec2> new_monster_uvs = monster_uvs;
@@ -62,11 +62,14 @@ void CreateNewMonster(){
     float theta =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(3.142f-0)));
     float phi =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(6.283f-0)));
     float rad =  1 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(50.0f-15)));
+    float x_ = rad*cos(phi)*sin(theta);
+    float y_ = rad*sin(phi)*sin(theta);
+    float z_ = rad*cos(theta);
 
     for(int j = 0; j < new_monster_vertices.size(); j++){
-        new_monster_vertices[j].x+= rad*cos(phi)*sin(theta);
-        new_monster_vertices[j].y += rad*sin(phi)*sin(theta);
-        new_monster_vertices[j].z += rad*cos(theta);
+        new_monster_vertices[j].x+= x_;
+        new_monster_vertices[j].y += y_;
+        new_monster_vertices[j].z += z_;
         vertices.push_back(new_monster_vertices[j]);
 
     }
@@ -81,6 +84,9 @@ void CreateNewMonster(){
     glGenBuffers(1, &uvbuffer);
     glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
     glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+    point p = point(x_, y_, z_);
+    return p;
+
 }
 
 
@@ -179,19 +185,23 @@ int main( void )
 	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
 	//int iteration_number = 0;
     srand(26);
-    //std::srand(std::time(nullptr)); // use current time as seed for random generator
+
+    // centers of generated monsters
     std::vector<point> centers;
     centers.emplace_back(0, 0, 0);
 
     auto last_monster_generation = std::chrono::system_clock::now();
     auto cur_time = std::chrono::system_clock::now();
 	do{
+	    // get my current position in space
+        glm::vec3 my_position = getPosition();
+
         cur_time = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = cur_time-last_monster_generation;
-	    //if(iteration_number == 1000) {
 	    if(elapsed_seconds.count() > 2) { // every 2 sec
-            //iteration_number = 0;
-            CreateNewMonster();
+            point new_center = CreateNewMonster();
+            // should we check for intersection with old monsters?
+            centers.push_back(new_center);
             last_monster_generation = std::chrono::system_clock::now();
 	    }
 		// Clear the screen
@@ -250,7 +260,6 @@ int main( void )
 		// Swap buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();
-        //iteration_number++;
 	} // Check if the ESC key was pressed or the window was closed
 	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
 		   glfwWindowShouldClose(window) == 0 );
