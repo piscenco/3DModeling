@@ -80,14 +80,53 @@ std::vector<glm::vec2> uvs;
 std::vector<glm::vec3> normals;
 
 float ball_speed = 6.0f;
+float monstr_speed = 5.0f;
 
 GLuint vertexbuffer;
 GLuint uvbuffer;
 
 float ball_last_time = float(glfwGetTime());
+float monstr_last_time = float(glfwGetTime());
 
 
 
+void moveMonsters(){
+    try {
+        glm::vec3 my_pos =  getPosition();
+        float my_x = my_pos.x;
+        float my_y = my_pos.y;
+        float my_z = my_pos.z;
+        float monstr_current_time = glfwGetTime();
+        auto monstr_delta_time = float(monstr_current_time - monstr_last_time);
+        int v_in_monstr = monster_vertices.size();
+        float m_x;
+        float m_y;
+        float m_z;
+        for (int i_monstr = 0; i_monstr < all_monsters_vertices.size(); i_monstr++) {
+
+            m_x = (my_x - all_monsters_vertices[i_monstr].x);
+            m_y = (my_y - all_monsters_vertices[i_monstr].y);
+            m_z = (my_z - all_monsters_vertices[i_monstr].z);
+            glm::vec3 move_vec = glm::normalize(glm::vec3(m_x, m_y, m_z)) * 0.5f;// * monstr_speed * monstr_delta_time;
+            all_monsters_vertices[i_monstr ] -= move_vec;
+
+        }
+
+        for (int i_monstr = 0; i_monstr < number_of_monsters; i_monstr++) {
+            m_x = my_x - all_monsters_vertices[i_monstr].x;
+            m_y = my_y - all_monsters_vertices[i_monstr].y;
+            m_z = my_z - all_monsters_vertices[i_monstr].z;
+            glm::vec3 move_vec = glm::normalize(glm::vec3(m_x, m_y, m_z))* 0.5f;// monstr_speed * monstr_delta_time;
+            monster_centers[i_monstr ].x -= move_vec.x;
+            monster_centers[i_monstr ].y -= move_vec.y;
+            monster_centers[i_monstr ].z -= move_vec.z;
+        }
+        monstr_last_time = float(glfwGetTime());
+    }
+    catch (const char* msg) {
+        printf(msg);
+    }
+}
 
 void moveBalls(){
     try {
@@ -268,8 +307,8 @@ int main( void )
 	//GLuint Texture = loadDDS("uvmap.DDS");
 	//GLuint Texture = loadDDS("ice512.dds");
 	//GLuint Texture = loadDDS("lava.dds");
-	//GLuint Texture = loadDDS("ice512.dds");
-	GLuint Texture = loadDDS("orange_skin.dds");
+	GLuint Texture = loadDDS("ice512.dds");
+	//GLuint Texture = loadDDS("orange_skin.dds");
 
 	// Get a handle for our "myTextureSampler" uniform
 	GLuint TextureID  = glGetUniformLocation(programID, "myTextureSampler");
@@ -335,11 +374,16 @@ int main( void )
             fire();
         }
         // balls fly each in their direction
+
+
+        showAllObjects();
+
         if(number_of_balls > 0) {
             moveBalls();
         }
-
-        showAllObjects();
+        //if(number_of_monsters > 0){
+        //    moveMonsters();
+        //}
 
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
