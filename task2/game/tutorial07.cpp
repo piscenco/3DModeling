@@ -155,7 +155,6 @@ void fire(pointsSet& balls_centers){
 }
 
 void removeCollisions(pointsSet& balls, pointsSet& monsters) {
-    std::cout << balls.size() << std::endl;
     for(auto ball_it = balls.begin(); ball_it != balls.end(); ) {
         for(auto monster_it = monsters.begin(); monster_it != monsters.end(); ) {
             if ((ball_it->second.x - monster_it->second.x) * (ball_it->second.x - monster_it->second.x) +
@@ -419,4 +418,5 @@ int main( void )
 
 	return 0;
 }
+
 
