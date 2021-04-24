@@ -5,6 +5,10 @@
 #include <iostream>
 #include <ctime>
 #include <chrono>
+#include <map>
+#include <chrono>
+#include <thread>
+
 
 // Include GLEW
 #include <GL/glew.h>
@@ -25,23 +29,16 @@ using namespace glm;
 
 
 
-struct point {
-    point(){}
+static int uniID = 0;
 
-    point(float a, float b, float c){
-        this->x = a;
-        this->y = b;
-        this->z = c;
-    }
-    float x;
-    float y;
-    float z;
-};
+int generateId() {
+    return uniID++;
+}
 
-struct ballCenter {
-    ballCenter(){}
+struct movingPoint {
+    movingPoint(){}
 
-    ballCenter(float a, float b, float c, glm::vec3 d){
+    movingPoint(float a, float b, float c, glm::vec3 d){
         this->x = a;
         this->y = b;
         this->z = c;
@@ -53,6 +50,8 @@ struct ballCenter {
     glm::vec3 direction;
 };
 
+using pointsSet = std::map<int, movingPoint>;
+
 // some global vectors. Did not won't to send them as arguments
 
 // vertices for 1 monster
@@ -60,125 +59,72 @@ std::vector<glm::vec3> monster_vertices;
 std::vector<glm::vec2> monster_uvs;
 std::vector<glm::vec3> monster_normals;
 
-int number_of_monsters = 0;
-std::vector<glm::vec3> all_monsters_vertices;
-std::vector<point> monster_centers;
-
 // vertices for 1 fireball
 std::vector<glm::vec3> ball_vertices;
 std::vector<glm::vec2> ball_uvs;
 std::vector<glm::vec3> ball_normals;
 
-int number_of_balls = 0;
-std::vector<glm::vec3> all_balls_vertices;
-std::vector<glm::vec3> ball_directions;
-std::vector<point> ball_centers;
+const float object_speed = 4.0f;
+const float monstr_speed = 5.0f;
 
 // all vertices in current window
 std::vector<glm::vec3> vertices;
 std::vector<glm::vec2> uvs;
 std::vector<glm::vec3> normals;
 
-float ball_speed = 6.0f;
-float monstr_speed = 5.0f;
 
-GLuint vertexbuffer;
-GLuint uvbuffer;
-
-float ball_last_time = float(glfwGetTime());
-float monstr_last_time = float(glfwGetTime());
-
-
-
-void moveMonsters(){
+void moveObjects(pointsSet& points, float time){
     try {
+
         glm::vec3 my_pos =  getPosition();
         float my_x = my_pos.x;
         float my_y = my_pos.y;
         float my_z = my_pos.z;
-        float monstr_current_time = glfwGetTime();
-        auto monstr_delta_time = float(monstr_current_time - monstr_last_time);
-        int v_in_monstr = monster_vertices.size();
-        float m_x;
-        float m_y;
-        float m_z;
-        for (int i_monstr = 0; i_monstr < all_monsters_vertices.size(); i_monstr++) {
 
-            m_x = (my_x - all_monsters_vertices[i_monstr].x);
-            m_y = (my_y - all_monsters_vertices[i_monstr].y);
-            m_z = (my_z - all_monsters_vertices[i_monstr].z);
-            glm::vec3 move_vec = glm::normalize(glm::vec3(m_x, m_y, m_z)) * 0.5f;// * monstr_speed * monstr_delta_time;
-            all_monsters_vertices[i_monstr ] -= move_vec;
-
-        }
-
-        for (int i_monstr = 0; i_monstr < number_of_monsters; i_monstr++) {
-            m_x = my_x - all_monsters_vertices[i_monstr].x;
-            m_y = my_y - all_monsters_vertices[i_monstr].y;
-            m_z = my_z - all_monsters_vertices[i_monstr].z;
-            glm::vec3 move_vec = glm::normalize(glm::vec3(m_x, m_y, m_z))* 0.5f;// monstr_speed * monstr_delta_time;
-            monster_centers[i_monstr ].x -= move_vec.x;
-            monster_centers[i_monstr ].y -= move_vec.y;
-            monster_centers[i_monstr ].z -= move_vec.z;
-        }
-        monstr_last_time = float(glfwGetTime());
-    }
-    catch (const char* msg) {
-        printf(msg);
-    }
-}
-
-void moveBalls(){
-    try {
-        // only 1 ball
-        // ball that is father than 10 disappears
-        glm::vec3 my_pos =  getPosition();
-        float my_x = my_pos.x;
-        float my_y = my_pos.y;
-        float my_z = my_pos.z;
-       if (ball_centers[0].x - my_x > 10 || ball_centers[0].y - my_y > 10 || ball_centers[0].z - my_z> 10 ||
-                ball_centers[0].x - my_x < -10 || ball_centers[0].y - my_y < -10 || ball_centers[0].z - my_z< -10) {
-            number_of_balls = 0;
-            all_balls_vertices.clear();
-            ball_directions.clear();
-            ball_centers.clear();
-            number_of_balls = 0;
-        }
-        float ball_current_time = glfwGetTime();
-        auto ball_delta_time = float(ball_current_time - ball_last_time);
-        int v_in_ball = ball_vertices.size();
-        float m_x;
-        float m_y;
-        float m_z;
-        for (int i_ball = 0; i_ball < number_of_balls; i_ball++) {
-            for (int v_ball = 0; v_ball < v_in_ball; v_ball++) {
-                m_x = ball_directions[i_ball].x * ball_speed * ball_delta_time;
-                m_y = ball_directions[i_ball].y * ball_speed * ball_delta_time;
-                m_z = ball_directions[i_ball].z * ball_speed * ball_delta_time;
-                glm::vec3 move_vec = glm::vec3(m_x, m_y, m_z);
-                all_balls_vertices[v_in_ball * i_ball + v_ball] += move_vec;
+        for(auto it = points.begin(); it != points.end(); ) {
+            if ((it->second.x - my_x) * (it->second.x - my_x) +
+                (it->second.y - my_y) * (it->second.y - my_y) +
+                (it->second.z - my_z) * (it->second.z - my_z) > 1000) {
+                it = points.erase(it);
             }
-            ball_centers[i_ball].x += m_x;
-            ball_centers[i_ball].y += m_y;
-            ball_centers[i_ball].z += m_z;
+            else {
+                it->second.x += it->second.direction.x * object_speed * time;
+                it->second.y += it->second.direction.y * object_speed * time;
+                it->second.z += it->second.direction.z * object_speed * time;
+                ++it;
+            }
         }
-        ball_last_time = float(glfwGetTime());
     }
     catch (const char* msg) {
         printf(msg);
-        
+
     }
 }
 
-void showAllObjects() {
+std::vector<glm::vec3> makeVertexVector(const pointsSet& centres, const std::vector<vec3>& model_vertices) {
+    std::vector<glm::vec3> result;
+    for(auto &[key, point]: centres) {
+        result.insert(result.end(), model_vertices.begin(), model_vertices.end());
+        for(size_t i = result.size() - model_vertices.size(); i < result.size(); ++i) {
+            result[i].x += point.x;
+            result[i].y += point.y;
+            result[i].z += point.z;
+        }
+    }
+    return result;
+}
+
+void showAllObjects(pointsSet& monster_centres, pointsSet& balls_centres, GLuint& vertexbuffer, GLuint& uvbuffer) {
     vertices.clear();
     uvs.clear();
-    vertices = all_monsters_vertices;
-    vertices.insert(vertices.end(), all_balls_vertices.begin(), all_balls_vertices.end());
-    for(int j = 0; j < number_of_monsters; j++){
+    auto all_monster_vertices = makeVertexVector(monster_centres, monster_vertices);
+    auto all_balls_vertives = makeVertexVector(balls_centres, ball_vertices);
+    vertices.insert(vertices.end(), all_monster_vertices.begin(), all_monster_vertices.end());
+    vertices.insert(vertices.end(), all_balls_vertives.begin(), all_balls_vertives.end());
+    for(int j = 0; j < monster_centres.size(); j++){
         uvs.insert(uvs.end(), monster_uvs.begin(), monster_uvs.end());
     }
-    for(int j = 0; j < number_of_balls; j++){
+    for(int j = 0; j < balls_centres.size(); j++){
         uvs.insert(uvs.end(), ball_uvs.begin(), ball_uvs.end());
     }
     glGenBuffers(1, &vertexbuffer);
@@ -190,13 +136,8 @@ void showAllObjects() {
     glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
 }
 
-void CreateNewMonster(){
+void CreateNewMonster(pointsSet& monster_centers){
     // can be generated in one place or near gamer
-    std::vector<glm::vec3> new_monster_vertices = monster_vertices;
-    std::vector<glm::vec2> new_monster_uvs = monster_uvs;
-    std::vector<glm::vec3> new_monster_normals = monster_normals;
-
-    int random_variable = std::rand();
     float theta =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(3.142f-0)));
     float phi =  0 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(6.283f-0)));
     float rad =  1 + static_cast <float> (rand()) /( static_cast <float> (RAND_MAX/(50.0f-15)));
@@ -204,38 +145,33 @@ void CreateNewMonster(){
     float y_ = rad*sin(phi)*sin(theta);
     float z_ = rad*cos(theta);
 
-    for(int j = 0; j < new_monster_vertices.size(); j++){
-        new_monster_vertices[j].x+= x_;
-        new_monster_vertices[j].y += y_;
-        new_monster_vertices[j].z += z_;
-        all_monsters_vertices.push_back(new_monster_vertices[j]);
-
-    }
-    number_of_monsters++;
-    point p = point(x_, y_, z_);
-    monster_centers.push_back(p);
+    monster_centers.emplace(generateId(), movingPoint(x_, y_, z_, glm::vec3(0, 0, 0)));
 }
 
-void fire(){
+void fire(pointsSet& balls_centers){
     // can be generated in one place or near gamer
-    std::vector<glm::vec3> new_ball_vertices = ball_vertices;
+    auto current_position = getPosition();
+    balls_centers.emplace(generateId(), movingPoint(current_position.x, current_position.y, current_position.z, getDirection()));
+}
 
-    float x_ = getPosition().x;
-    float y_ = getPosition().y;
-    float z_ = getPosition().z;
-
-
-    for(int j = 0; j < new_ball_vertices.size(); j++){
-        new_ball_vertices[j].x+= x_;
-        new_ball_vertices[j].y += y_;
-        new_ball_vertices[j].z += z_;
-        all_balls_vertices.push_back(new_ball_vertices[j]);
-
+void removeCollisions(pointsSet& balls, pointsSet& monsters) {
+    std::cout << balls.size() << std::endl;
+    for(auto ball_it = balls.begin(); ball_it != balls.end(); ) {
+        for(auto monster_it = monsters.begin(); monster_it != monsters.end(); ) {
+            if ((ball_it->second.x - monster_it->second.x) * (ball_it->second.x - monster_it->second.x) +
+                (ball_it->second.y - monster_it->second.y) * (ball_it->second.y - monster_it->second.y) +
+                (ball_it->second.z - monster_it->second.z) * (ball_it->second.z - monster_it->second.z) < 1) {
+                monsters.erase(monster_it);
+                monster_it = monsters.begin();
+                ball_it = balls.erase(ball_it);
+            } else {
+                ++monster_it;
+            }
+        }
+        if (ball_it != balls.end()) {
+            ++ball_it;
+        }
     }
-    ball_directions.push_back(getDirection());
-    number_of_balls++;
-    point p = point(x_, y_, z_);
-    ball_centers.push_back(p);
 }
 
 int main( void )
@@ -330,6 +266,21 @@ int main( void )
         ball_vertices[k].z /= 40;
     }
 
+    // All monsters
+    pointsSet monster_centers;
+    monster_centers.emplace(generateId(), movingPoint(0, 0, 0, glm::vec3(0,0,0)));
+
+    // All balls
+    std::vector<glm::vec3> ball_directions;
+    pointsSet ball_centers;
+
+
+
+    GLuint vertexbuffer;
+    GLuint uvbuffer;
+
+    auto ball_last_time = float(glfwGetTime());
+    auto monstr_last_time = float(glfwGetTime());
 
     // Load it into a VBO
 
@@ -340,17 +291,16 @@ int main( void )
 	glGenBuffers(1, &uvbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
 	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+
 	//int iteration_number = 0;
     srand(26);
 
-    // centers of generated monsters
-    std::vector<point> centers;
-    centers.emplace_back(0, 0, 0);
+
 
     auto last_monster_generation = std::chrono::system_clock::now();
+    auto last_fireball_generation = std::chrono::system_clock::now();
     auto cur_time = std::chrono::system_clock::now();
 
-    //point new_center = CreateNewMonster();
 
     std::cout<<"Starting game"<<std::endl;
 
@@ -362,28 +312,37 @@ int main( void )
         std::chrono::duration<double> elapsed_seconds = cur_time - last_monster_generation;
 
         // create monsters every 2 sec
-	    if(elapsed_seconds.count() > 2) {
-             CreateNewMonster();
-            // should we check for intersection with old monsters?
+	    if(elapsed_seconds.count() > 2 && monster_centers.size() < 20) {
+             CreateNewMonster(monster_centers);
+            // should we check for intersection with old monsters? /TODO
 
             //update time
             last_monster_generation = std::chrono::system_clock::now();
 	    }
 	    // fire fireball, if ENTER is pressed
-        if ((glfwGetKey( window, GLFW_KEY_ENTER ) == GLFW_PRESS )&& number_of_balls == 0){
-            fire();
+        if (glfwGetKey( window, GLFW_KEY_ENTER ) == GLFW_PRESS &&
+            ball_centers.size() < 100 &&
+            (cur_time - last_fireball_generation).count() > 100000000) {
+
+            last_fireball_generation = std::chrono::system_clock::now();
+            fire(ball_centers);
+            auto ball_delta_time = float(glfwGetTime() - ball_last_time);
         }
         // balls fly each in their direction
 
 
-        showAllObjects();
+        showAllObjects(monster_centers, ball_centers, vertexbuffer, uvbuffer);
+        // moving balls
+        auto ball_delta_time = float(glfwGetTime() - ball_last_time);
+        moveObjects(ball_centers, ball_delta_time);
+        ball_last_time = float(glfwGetTime());
 
-        if(number_of_balls > 0) {
-            moveBalls();
-        }
+        removeCollisions(ball_centers, monster_centers);
         //if(number_of_monsters > 0){
         //    moveMonsters();
         //}
+
+
 
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
